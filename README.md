@@ -1,6 +1,6 @@
 # covid_multimorbidity
 
-This repository contains scripts, data, results, figures and reproducibility report for the "SARS-CoV-2 comorbidity" study. In this study, we identified all eQTL SNPs that are involved in ADH and ALDH gene regulation and explored whether they are associated with alcohol dependence, psychiatric disorders and cognition.
+This repository contains scripts, data, results, figures and reproducibility report for the "SARS-CoV-2 comorbidity" study. In this study, we identified genomic variants, genes and biological pathways that provide putative causal mechanisms connecting inherited risk factors for SARS-CoV-2 and comorbidities for the first time.
 
 Python (version 3.6.9), R studio (version 1.3.959) was used to visualise results. Cytoscape (version 3.8.2) was used for visualising the STRING network. 
 
