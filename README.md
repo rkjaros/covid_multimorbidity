@@ -10,5 +10,8 @@ Python (version 3.6.9), R studio (version 1.3.959) was used to visualise results
 
 3. Gene regulatory networks are available on figshare - [Brain](10.6084/m9.figshare.20205641); [Lung](10.6084/m9.figshare.20205644); [Whole  Blood](10.6084/m9.figshare.20205662); [Coronary Artery](10.6084/m9.figshare.20205647)
 
-![Figure 1](https://user-images.githubusercontent.com/95199776/177058828-6dedb56e-7a2f-4584-b45c-9278c82157bb.png)
+4. Python pipelines for assessing variant targets [CoDeS3D](https://github.com/rkjaros/codes3d) and genes and biological pathways associates with SARS-CoV-2 [comorbidities](https://github.com/rkjaros/multimorbid3D) are linked. 
+
+![Figure 1](https://user-images.githubusercontent.com/95199776/177059083-b660d3cb-fdd7-4f0d-b012-5a7158b176df.png)
+
 
