@@ -12,6 +12,9 @@ Python (version 3.6.9), R studio (version 1.3.959) was used to visualise results
 
 4. Python pipelines for assessing variant targets [CoDeS3D](https://github.com/rkjaros/codes3d) and genes and biological pathways associates with SARS-CoV-2 [comorbidities](https://github.com/rkjaros/multimorbid3D) are linked. 
 
-![Figure 1](https://user-images.githubusercontent.com/95199776/177059083-b660d3cb-fdd7-4f0d-b012-5a7158b176df.png)
+![Figure 1 3](https://user-images.githubusercontent.com/95199776/177217509-c4e73ca9-c7ee-4a48-a2dc-c641933e0ef1.png)
+
+
+
 
 
