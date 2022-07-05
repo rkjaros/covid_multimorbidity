@@ -12,6 +12,8 @@ Python (version 3.6.9), R studio (version 1.3.959) was used to visualise results
 
 4. Python pipelines for assessing variant targets [CoDeS3D](https://github.com/rkjaros/codes3d) and genes and biological pathways associated with SARS-CoV-2 [comorbidities](https://github.com/rkjaros/multimorbid3D) are linked. 
 
+5. SARS-CoV-2 GWAS data from COVID-19 HGI (Release 6) for the "severe" patient population is [here](https://storage.googleapis.com/covid19-hg-public/20210415/results/20210607/COVID19_HGI_A2_ALL_leave_23andme_20210607.txt.gz) and the "hospitalised" patient population is [here](https://storage.googleapis.com/covid19-hg-public/20210415/results/20210607/COVID19_HGI_B2_ALL_leave_23andme_20210607.txt.gz)
+
 ![Figure 1 3](https://user-images.githubusercontent.com/95199776/177217509-c4e73ca9-c7ee-4a48-a2dc-c641933e0ef1.png)
 
 
