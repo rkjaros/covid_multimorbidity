@@ -1,0 +1,1074 @@
+---
+title: "Comorbidity genetic risk and pathways impact SARS-CoV-2 infection outcomes"
+author: "Rachel Jaros [email:rachel.jaros@auckland.ac.nz]"
+date: "29/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Input files
+
+```{command}
+
+# COVID19 hgi data available here (https://www.covid19hg.org/results/r6/) was filtered for variants < 1 x 10^-5. 
+
+# Hospitalised 
+awk '($9 < 1e-5) {print $0}' COVID19_HGI_B2_ALL_leave_23andme_20210607 > COVID19_HGI_B2_ALL_leave_23andme_20210607_1e-5.txt
+
+# Severe
+awk '($9 < 1e-5) {print $0}' COVID19_HGI_A2_ALL_leave_23andme_20210607 > COVID19_HGI_A2_ALL_leave_23andme_20210607_1e-5.txt
+
+```
+
+### CoDeS3D
+
+```{python}
+
+# CoDeS3D was run on severe and hospitalised variants - see https://github.com/rkjaros/covid_multimorbidity 
+
+```
+
+### Comorbid pipeline
+
+```{python}
+
+# input files
+## gene regulatory network in whole blood - see https://doi.org/10.6084/m9.figshare.20205662.v2
+## gene regulatory network in coronary artery - see https://doi.org/10.6084/m9.figshare.20205647
+## gene regulatory network in lung - see https://doi.org/10.6084/m9.figshare.20205644
+## gene regulatory network in brain - see https://doi.org/10.6084/m9.figshare.20205641
+## GWAS catalogue downloaded on 02-12-2021 - see https://doi.org/10.6084/m9.figshare.20235477
+
+# comorbid.py was run on tissue-specific severe and hospitalised genes (results from CoDeS3D, supplementary tables 2 and 6) - see https://github.com/rkjaros/multimorbid3D
+
+```
+### Main Figures
+
+#### input files referenced for all figures are available on github here:  https://github.com/rkjaros/covid_multimorbidity/tree/main/Visualisation%20files
+
+#### figure 2. Protein diffusion network analysis in lung tissue 
+
+```{r}
+
+# input files 
+
+severe_only_lung <- read_excel("severe_string_lung.xlsx", 
+                                col_types = c("text", "text", "text", 
+                                              "text", "numeric", "numeric", "numeric", 
+                                              "numeric", "numeric", "numeric"))
+hosp_only_lung <- read_excel("hosp_string_lung.xlsx", 
+                               col_types = c("text", "text", "text", 
+                                             "text", "numeric", "numeric", "numeric", 
+                                             "numeric", "numeric", "numeric"))
+severe_shared_lung <- read_excel("severe_string_shared_lung.xlsx", 
+                                 col_types = c("text", "text", "text", 
+                                               "text", "numeric", "numeric", "numeric", 
+                                               "numeric", "numeric", "numeric"))
+hosp_shared_lung <- read_excel("hosp_string_shared_lung.xlsx", 
+                               col_types = c("text", "text", "text", 
+                                             "text", "numeric", "numeric", "numeric", 
+                                               "numeric", "numeric", "numeric"))
+level0_severe <- read_excel("level0_severe_genes.xlsx")
+level0_hosp <- read_excel("level0_hosp_genes.xlsx")
+
+# Bubble plots were used to visualise the significantly enriched traits (p-values and number of eQTLs) across all levels in the protein diffusion network analysis. The plots are divided by COVID-19 phenotypes hospitalised and severe. 
+
+# figure 2a. Traits significant following bootstrapping that were shared across both phenotypes in lung identified by STRING ------------------------
+# Shared hosp only. 
+
+pdf("~/shared_hosp_bubbleplot.pdf", width = 5.40, height = 4.85)
+
+p_gg <- ggplot(hosp_shared_lung, aes(x = level, y = data_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(70))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# figure 2a. Shared severe only. Traits significant following bootstrapping that were shared across both phenotypes in lung
+
+pdf("~/shared_sev_bubbleplot.pdf", width = 5.20, height = 4.85)
+
+p_gg <- ggplot(severe_shared_lung, aes(x = level, y = data_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(70))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# figure 2b. Genetic drivers of severe only lung tissue traits at level 0 identified from STRING------------------------
+
+# Heatmaps were used to highlight the genes (and number of eQTLs) driving each trait enrichment at a particular level. Here we highlight the level 0 pleiotropic genes for both severe and hospitalised phenotypes. 
+
+library(pheatmap)
+
+dataset <- table(level0_severe[c("trait", "gene")]) 
+
+pheatmap (dataset,
+         color = colorRampPalette (c ("white", "red")) (11), 
+         cluster_cols = T, 
+         cluster_rows = T,
+         cellheight = 9, 
+         cellwidth = 9,
+         fontsize = 8,
+         filename = "~/heatmap_severe_level0.pdf")
+
+# figure 2c. Genetic drivers of hospitalised only lung tissue traits at level 0 identified from STRING------------------------
+
+dataset <- table(level0_hosp[c("trait", "gene")]) 
+
+pheatmap (dataset,
+         color = colorRampPalette (c ("white", "red")) (11), 
+         cluster_cols = T, 
+         cluster_rows = T,
+         cellheight = 9, 
+         cellwidth = 9,
+         fontsize = 8,
+         filename = "~/heatmap_hosp_level0.pdf")
+
+# figure 2d. Traits significant following bootstrapping that were unique to the hospitalised phenotype in lung identified from STRING ------------------------
+
+pdf("~/hosp_bubbleplot.pdf", width = 6.85, height = 4)
+
+p_gg <- ggplot(hosp_only_lung, aes(x = level, y = data_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(70))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# figure 2e. Traits significant following bootstrapping that were unique to the severe phenotype in lung identified from STRING ------------------------
+
+pdf("~/sev_bubbleplot.pdf", width = 7, height = 3.5)
+
+p_gg <- ggplot(severe_only_lung, aes(x = level, y = data_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(20))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+```
+
+#### figure 3. Protein diffusion network analysis from STRING of blood and brain tissue-specific gene regulatory mechanisms driving trait associations with SARS-CoV-2 severity.
+
+```{r}
+
+library(ggplot2)
+library(forcats)
+library(readxl)
+
+# input files 
+
+a2_blood_string_shared <- read_excel("~/significant_enrichment_bootstrap_a2_shared.xlsx", 
+                                     col_types = c("text", "text", "text", 
+                                                   "text", "numeric", "numeric", "numeric", 
+                                                   "numeric", "numeric", "numeric"))
+
+b2_blood_string_shared <- read_excel("~/significant_enrichment_bootstrap_b2_shared.xlsx", 
+                                     col_types = c("text", "text", "text", 
+                                                   "text", "numeric", "numeric", "numeric", 
+                                                   "numeric", "numeric", "numeric"))
+
+a2_brain_string <- read_excel("~/a2_significant_enrichment_bootstrap_R.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric"))
+
+b2_brain_string <- read_excel("~/b2_significant_enrichment_bootstrap_R.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric"))
+a2_brain <- read_excel("~/level0_severe_genes.xlsx")
+b2_brain <- read_excel("~/level0_hosp_genes.xlsx")
+
+# figure 3a. Blood tissue shared severe and hospitalised traits identified from STRING------------------------
+
+# shared bubble plot - severe
+
+pdf("~/severe_shared_bubbleplot.pdf", width = 7.30, height = 14)
+
+p_gg <- ggplot(a2_blood_string_shared, aes(x = level, y = trait_R)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(50))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# shared bubble plot - hosp
+
+pdf("~/hosp_shared_bubbleplot.pdf", width = 7.30, height = 14)
+
+p_gg <- ggplot(b2_blood_string_shared, aes(x = level, y = trait_R)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(50))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# figure 3b. Brain tissue severe and hospitalised traits identified from STRING  ------------------------
+
+#severe bubble plot
+
+pdf("~/severe_bubbleplot.pdf", width = 7.5, height = 10.5)
+
+p_gg <- ggplot(a2_brain_string, aes(x = level, y = trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(60))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+#hosp bubble plot
+
+pdf("~/hosp_bubbleplot.pdf", width = 7.5, height = 10.5)
+
+p_gg <- ggplot(b2_brain_string, aes(x = level, y = trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(60))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# figure 3c. Genetic drivers of severe only brain tissue traits at level 0 identified from STRING------------------------
+
+library(pheatmap)
+
+a2_brain_f <- table(a2_brain[c("trait", "gene")]) 
+
+pheatmap (a2_brain_f,
+          color = colorRampPalette (c ("white", "red")) (500), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 7,
+          filename = "~/level0_heatmap.pdf")
+
+# figure 3c. Genetic drivers of hospitalised only brain tissue traits at level 0 identified from STRING------------------------
+
+b2_brain_f <- table(b2_brain[c("trait", "gene")]) 
+
+pheatmap (b2_brain_f,
+          color = colorRampPalette (c ("white", "red")) (500), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 7,
+          filename = "~/level0_heatmap.pdf")
+
+```
+
+### Supplementary Figures 
+
+#### supplementary figure 2. Protein diffusion network analysis from STRING of lung tissue-specific trait associations - before bootstrapping
+
+```{r}
+
+# input files 
+
+hosp_string_shared <- read_excel("~/hosp_significant_enrichment_shared_R.xlsx", 
+                                                               col_types = c("text", "text", "text", 
+                                                                             "text", "numeric", "numeric", "numeric", 
+                                                                             "numeric", "numeric", "numeric"))
+severe_string_shared <- read_excel("~/severe_significant_enrichment_shared_R.xlsx", 
+                                                                    col_types = c("text", "text", "text", 
+                                                                                            "text", "numeric", "numeric", "numeric", 
+                                                                                            "numeric", "numeric", "numeric"))
+severe_string <- read_excel("~/severe_significant_enrichment_severe_R.xlsx", 
+                                                                    col_types = c("text", "text", "text", 
+                                                                                            "text", "numeric", "numeric", "numeric", 
+                                                                                            "numeric", "numeric", "numeric"))
+hosp_string <- read_excel("~/hosp_significant_enrichment_hosp_R.xlsx", 
+                                                                col_types = c("text", "text", "text", 
+                                                                                        "text", "numeric", "numeric", "numeric", 
+                                                                                        "numeric", "numeric", "numeric"))
+
+# supplementary figure 2a. Lung tissue shared severe and hospitalised traits identified from STRING------------------------
+
+# hospitalised shared only
+
+pdf("~/shared_hosp_bubbleplot.pdf", width = 8.25, height = 7.5)
+
+p_gg <- ggplot(hosp_string_shared, aes(x = level, y = data_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(250))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# severe shared only
+
+pdf("~/shared_severe_bubbleplot.pdf", width = 8.25, height = 7.5)
+
+p_gg <- ggplot(severe_string_shared, aes(x = level, y = data_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(250))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# supplementary figure 2b. Lung tissue hospitalised only traits identified from STRING------------------------
+
+pdf("~/hosp_string.pdf", width = 9, height = 8)
+
+p_gg <- ggplot(hosp_string, aes(x = level, y = trait)) +
+geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+theme(legend.key=element_blank(),
+axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+vjust = 0.3, hjust = 1),
+axis.text.y = element_text(colour = "black", size = 8),
+legend.text = element_text(size = 8, colour ="black"),
+legend.title = element_text(size = 9, face = "bold"),
+panel.background = element_blank(), panel.border = element_rect(colour = "black",
+fill = NA, size = 1),
+legend.position = "right")
+p_gg
+
+dev.off()
+
+# supplementary figure 2c. Lung tissue severe only traits identified from STRING------------------------
+
+p_gg <- ggplot(severe_string, aes(x = level, y = trait)) +
+geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+theme(legend.key=element_blank(),
+axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+vjust = 0.3, hjust = 1),
+axis.text.y = element_text(colour = "black", size = 8),
+legend.text = element_text(size = 8, colour ="black"),
+legend.title = element_text(size = 9, face = "bold"),
+panel.background = element_blank(), panel.border = element_rect(colour = "black",
+fill = NA, size = 1),
+legend.position = "right")
+p_gg
+
+dev.off()
+
+```
+
+#### supplementary figure 3. Protein diffusion network analysis from PROPER-Seq of lung tissue-specific gene regulatory mechanisms driving shared trait associations with SARS-CoV-2 severity.
+
+```{r}
+
+proper_severe_shared <- read_excel("/~a2_significant_enrichment_bootstrap_final_R.xlsx", 
+                             col_types = c("text", "text", "text", 
+                                           "text", "text", "numeric", "numeric", 
+                                           "numeric", "numeric", "numeric", 
+                                           "numeric", "numeric"))
+
+proper_hosp_shared <- read_excel("~/b2_significant_enrichment_bootstrap_final_R.xlsx", 
+                            col_types = c("text", "text", "text", 
+                                           "text", "text", "numeric", "numeric", 
+                                           "numeric", "numeric", "numeric", 
+                                           "numeric", "numeric"))
+
+# proper-seq hospitalised shared
+
+pdf("~/shared_hosp_bubbleplot.pdf", width = 6.3, height = 7)
+
+p_gg <- ggplot(proper_hosp_shared, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(30))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# proper severe shared data
+
+pdf("~/shared_sev_bubbleplot.pdf", width = 6.3, height = 7)
+
+p_gg <- ggplot(proper_severe_shared, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(30))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+```
+
+#### supplementary figure 6. Genes driving trait associations in levels 1 - 4 of the protein diffusion network analysis from hospitalised and severe SARS-CoV-2 phenotypes
+
+```{r}
+
+#severe files
+level1_sig_trait_gene <- read_excel("level1_sig_trait_gene.xlsx")
+level2_sig_trait_gene <- read_excel("level2_sig_trait_gene.xlsx")
+level3_sig_trait_gene <- read_excel("level3_sig_trait_gene.xlsx")
+level4_sig_trait_gene <- read_excel("level4_sig_trait_gene.xlsx")
+
+dataset1 <- table(level1_sig_trait_gene[c("trait", "gene")]) 
+dataset2 <- table(level2_sig_trait_gene[c("trait", "gene")]) 
+dataset3 <- table(level2_sig_trait_gene[c("trait", "gene")]) 
+dataset4 <- table(level2_sig_trait_gene[c("trait", "gene")]) 
+
+#hosp files
+level1_sig_trait_gene <- read_excel("level1_sig_trait_gene.xlsx")
+level2_sig_trait_gene <- read_excel("level2_sig_trait_gene.xlsx")
+level3_sig_trait_gene <- read_excel("level3_sig_trait_gene.xlsx")
+level4_sig_trait_gene <- read_excel("level4_sig_trait_gene.xlsx")
+
+dataset5 <- table(level1_sig_trait_gene[c("trait", "gene")]) 
+dataset6 <- table(level2_sig_trait_gene[c("trait", "gene")]) 
+dataset7 <- table(level2_sig_trait_gene[c("trait", "gene")]) 
+dataset8 <- table(level2_sig_trait_gene[c("trait", "gene")]) 
+
+#create heatmap
+pheatmap (dataset2, # amend to each dataset for figures 6a to h. 
+          color = colorRampPalette (c ("white", "red")) (200), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 3,
+          filename = "~/heatmap_severe_level1.pdf") # amend to each dataset for figures 6a to h
+
+```
+
+#### supplementary figure 7. Protein diffusion network analysis from STRING of blood tissue-specific trait associations 
+
+```{r}
+
+# input files
+
+a2_blood_string <- read_excel("~/significant_enrichment_bootstrap_a2_unique.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric"))
+
+b2_blood_string <- read_excel("~/significant_enrichment_bootstrap_b2_unique.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric"))
+
+# supplementary figure 7a. Hospitalised only trait associations in blood------------------------
+
+pdf("~/hosp_only_bubbleplot.pdf", width = 7.35, height = 7.50)
+
+p_gg <- ggplot(b2_blood_string, aes(x = level, y = trait_R)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(190))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# supplementary figure 7b. Severe only trait associations in blood------------------------
+
+pdf("~/severe_only_bubbleplot.pdf", width = 6.90, height = 4.5)
+
+p_gg <- ggplot(a2_blood_string, aes(x = level, y = trait_R)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(35))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+```
+
+#### supplementary figure 8. Protein diffusion network analysis from PROPER-Seq of brain tissue-specific trait associations 
+
+```{r}
+
+# input files
+
+a2_shared_brain <- read_excel("~/a2_significant_enrichment_bootstrap_final_R.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "text", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric"))
+
+b2_shared_brain <- read_excel("~/b2_significant_enrichment_bootstrap_final_R.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "text", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric"))
+
+# shared hosp only
+
+pdf("~/shared_hosp_bubbleplot.pdf", width = 6.65, height = 7)
+
+p_gg <- ggplot(b2_shared_brain, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(30))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# shared severe only
+
+pdf("~/shared_sev_bubbleplot.pdf", width = 6.65, height = 7)
+
+p_gg <- ggplot(a2_shared_brain, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(30))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+
+```
+
+#### supplementary figure 9. Protein diffusion network analysis from PROPER-Seq of blood tissue-specific trait associations 
+
+```{r}
+
+# input files
+
+a2_shared_blood <- read_excel("~/a2_blood_proper_shared_R.xlsx", 
+                              col_types = c("text", "text", "text", 
+                                            "text", "text", "numeric", "numeric", 
+                                            "numeric", "numeric", "numeric", 
+                                            "numeric", "numeric"))
+
+b2_shared_blood <- read_excel("~/b2_blood_proper_shared_R.xlsx", 
+                                 col_types = c("text", "text", "text", 
+                                               "text", "text", "numeric", "numeric", 
+                                               "numeric", "numeric", "numeric", 
+                                               "numeric", "numeric"))
+
+a2_blood <- read_excel("~/a2_blood_proper_R.xlsx", 
+                          col_types = c("text", "text", "text", 
+                                        "text", "text", "numeric", "numeric", 
+                                        "numeric", "numeric", "numeric", 
+                                        "numeric", "numeric"))
+
+b2_blood <- read_excel("~/b2_blood_proper_R.xlsx", 
+                          col_types = c("text", "text", "text", 
+                                        "text", "text", "numeric", "numeric", 
+                                        "numeric", "numeric", "numeric", 
+                                        "numeric", "numeric"))
+
+# supplementary figure 9a. Blood tissue shared severe and hospitalised traits identified from PROPER-Seq------------------------
+# shared hosp only
+
+pdf("~/shared_hosp_bubbleplot.pdf", width = 6.5, height = 12.5)
+
+p_gg <- ggplot(b2_shared_blood, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(50))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# shared severe only
+
+pdf("~/shared_sev_bubbleplot.pdf", width = 6.5, height = 12.5)
+
+p_gg <- ggplot(a2_shared_blood, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(50))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# supplementary figure 9b. Blood tissue hospitalised only traits identified from PROPER-Seq------------------------
+
+pdf("~/hosp_bubbleplot.pdf", width = 6.40, height = 5)
+
+p_gg <- ggplot(b2_blood, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(20))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# supplementary figure 9c. Blood tissue hospitalised only traits identified from PROPER-Seq------------------------
+
+pdf("~/sev_bubbleplot.pdf", width = 6.5, height = 5)
+
+p_gg <- ggplot(a2_blood, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(35))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+```
+
+#### supplementary figure 10. Genes enriched for the severe and hospitalised traits from the blood tissue analysis derived from STRING (detailed from figure 3a)
+
+```{r}
+
+# input files
+
+severe_blood <- read_excel("~/a2_level0_trait_gene.xlsx")
+hosp_blood <- read_excel("~/b2_level0_trait_gene.xlsx")
+
+# supplementary figure 10a. Genes that are associated with the significant traits at level 0 in the severe phenotype ------------------------
+severe_blood_f <- table(a2_blood[c("trait", "gene")]) 
+
+pheatmap (severe_blood_f,
+          color = colorRampPalette (c ("white", "red")) (500), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 15,
+          filename = "~/level0_heatmap.pdf")
+
+# supplementary figure 10b. Genes that are associated with the significant traits at level 0 in the hospitalised phenotype ------------------------
+hosp_blood_f <- table(b2_blood[c("trait", "gene")]) 
+
+pheatmap (hosp_blood_f,
+          color = colorRampPalette (c ("white", "red")) (500), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 15,
+          filename = "~/level0_heatmap.pdf")
+
+```
+
+#### supplementary figure 11. Overlap between trait sets for hospitalised and severe phenotypes in blood, lung and brain identified from STRING
+
+```{r}
+
+# input files
+
+a2_lung <- read_excel("~/a2_lung_significant_enrichment.xlsx")
+a2_brain <- read_excel("~/a2_brain_significant_enrichment.xlsx")
+a2_blood <- read_excel("~/a2_blood_significant_enrichment.xlsx")
+b2_lung <- read_excel("~/b2_lung_significant_enrichment.xlsx")
+b2_brain <- read_excel("~/b2_brain_significant_enrichment.xlsx")
+b2_blood <- read_excel("~/b2_blood_significant_enrichment.xlsx")
+a2_brain_shared_traits <- read_excel("~/a2_brain_shared_traits.xlsx")
+a2_blood_shared_traits <- read_excel("~/a2_blood_shared_traits.xlsx")
+a2_lung_shared_traits <- read_excel("~/a2_lung_shared_traits_update.xlsx")
+b2_brain_shared_traits <- read_excel("~/b2_brain_shared_traits.xlsx")
+b2_blood_shared_traits <- read_excel("~/b2_blood_shared_traits.xlsx")
+b2_lung_shared_traits <- read_excel("~/b2_lung_shared_traits_update.xlsx")
+
+# supplementary figure 11a. Comparison of traits that interact with SARS-CoV-2 hospitalised or severe phenotypes by tissue (i.e. blood, brain, lung) ------------------------
+
+library(UpSetR)
+traits <- list(Lung_a2=a2_lung$trait, Brain_a2=a2_brain$trait, Blood_a2=a2_blood$trait, Lung_b2=b2_lung$trait, Brain_b2=b2_brain$trait, Blood_b2=b2_blood$trait)
+upset(fromList(traits), 
+      mainbar.y.label = "Overlapping traits", #empty.intersections = "on",
+      nsets = 6,
+      order.by = "degree", matrix.color = "gray23", sets.x.label = "Traits", shade.color = "gray88",
+      point.size = 2.5, main.bar.color = "gray23", line.size = 0.25, sets.bar.color=c("#70AD47", "#5B9BD5", "#70AD47", "#5B9BD5", "#70AD47", "#5B9BD5"),
+      text.scale = c(1.05,1.15,1.00,1.05,1.15,1.25)) 
+
+# supplementary figure 11b. Overlap between genes for 7 shared traits in all tissues (blood, lung and brain) in both hospitalised and severe phenotypes identified from STRING  ------------------------
+
+# after review of the 7 shared traits, I noticed that the genes enriched for all 7 shared traits appear to be different. 
+# In order to check whether the genes driving the traits are the same, upset plot to follow.   
+
+traits <- list(Lung_a2=a2_lung_shared_traits$gene, Brain_a2=a2_brain_shared_traits$gene, Blood_a2=a2_blood_shared_traits$gene, Lung_b2=b2_lung_shared_traits$gene, Brain_b2=b2_brain_shared_traits$gene, Blood_b2=b2_blood_shared_traits$gene)
+upset(fromList(traits), 
+      mainbar.y.label = "Genes overlapping shared traits", #empty.intersections = "on",
+      nsets = 6,
+      order.by = "degree", matrix.color = "gray23", sets.x.label = "Genes", shade.color = "gray88",
+      point.size = 2.5, main.bar.color = "gray23", line.size = 0.25, sets.bar.color=c("#5B9BD5", "#70AD47", "#70AD47", "#5B9BD5", "#70AD47", "#5B9BD5"),
+      text.scale = c(1.05,1.15,1.00,1.05,1.15,1.25))
+
+# data file for supplementary table 
+
+merged_supp <- rbind(a2_brain_shared_traits[c("level", "snp", "concat", "trait", "gene")], a2_blood_shared_traits[c("level", "snp", "concat", "trait", "gene")], a2_lung_shared_traits[c("level", "snp", "concat", "trait", "gene")])
+supp_all_shared <- table(merged_supp[c("level", "snp", "concat", "trait", "gene")])
+write_xlsx(merged_supp,"~/all_shared_snp_gene.xlsx")
+
+```
+
+#### supplementary figure 12. Genes enriched for the unique severe and hospitalised traits from the blood tissue analysis derived from STRING (detailed from Supplementary Figure 7)
+
+```{r}
+
+# input files
+severe_blood_unique <- read_excel("~/a2_blood_unique_traits.xlsx")
+hosp_blood_unique <- read_excel("~/b2_blood_unique_traits.xlsx")
+
+# supplementary figure 12a. Genes that are associated with significant traits across all levels unique to the severe phenotype in blood ------------------------
+
+severe_blood <- table(severe_blood_unique[c("trait", "gene")]) 
+
+pheatmap (severe_blood,
+          color = colorRampPalette (c ("white", "red")) (100), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          filename = "~/severe_unique_heatmap.pdf")
+
+# supplementary figure 12b. Genes that are associated with significant traits across all levels unique to the hospitalised phenotype in blood ------------------------
+
+hosp_blood <- table(hosp_blood_unique[c("trait", "gene")]) 
+
+pheatmap (hosp_blood,
+          color = colorRampPalette (c ("white", "red")) (100), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          filename = "~/hosp_unique_heatmap.pdf")
+
+```
+
+#### supplementary figure 13. Protein diffusion network analysis from STRING of coronary artery tissue-specific trait associations 
+
+```{r}
+
+# input files
+
+a2_shared_coronary <- read_excel("~/a2_coronary_string_shared_R.xlsx", 
+                             col_types = c("text", "text", "text", 
+                                           "text", "text", "numeric", "numeric", 
+                                           "numeric", "numeric", "numeric", 
+                                           "numeric", "numeric"))
+
+b2_shared_coronary <- read_excel("~/b2_coronary_string_shared_R.xlsx", 
+                             col_types = c("text", "text", "text", 
+                                           "text", "text", "numeric", "numeric", 
+                                           "numeric", "numeric", "numeric", 
+                                           "numeric", "numeric"))
+
+a2_coronary <- read_excel("~/a2_coronary_string_R.xlsx", 
+                             col_types = c("text", "text", "text", 
+                                           "text", "text", "numeric", "numeric", 
+                                           "numeric", "numeric", "numeric", 
+                                           "numeric", "numeric"))
+
+b2_coronary <- read_excel("~/b2_coronary_string_R.xlsx", 
+                             col_types = c("text", "text", "text", 
+                                           "text", "text", "numeric", "numeric", 
+                                           "numeric", "numeric", "numeric", 
+                                           "numeric", "numeric"))
+
+# supplementary figure 13a. Coronary artery tissue shared severe and hospitalised traits identified from STRING------------------------
+# shared hosp only
+
+pdf("~/shared_hosp_bubbleplot.pdf", width = 6.7, height = 6)
+
+p_gg <- ggplot(b2_shared_coronary, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(35))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# shared sev only
+
+pdf("~/shared_sev_bubbleplot.pdf", width = 6.7, height = 6)
+
+p_gg <- ggplot(a2_shared_coronary, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(35))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# supplementary figure 13b. Coronary artery tissue severe traits identified from STRING------------------------
+
+pdf("~/sev_bubbleplot.pdf", width = 7.3, height = 7)
+
+p_gg <- ggplot(a2_coronary, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(45))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+# supplementary figure 13c. Coronary artery tissue hospitalised traits identified from STRING------------------------
+
+pdf("~/hosp_bubbleplot_bar.pdf", width = 6.75, height = 5)
+
+p_gg <- ggplot(b2_coronary, aes(x = level, y = concat_trait)) +
+  geom_point(aes(size = trait_eqtls, fill = adj_pval), alpha = 0.75, shape = 21) +
+  scale_size(limits = c(min(1), max(25))) +
+  labs( x = "", y = "", size = "Number of eQTLs", fill = "Adj p value") +
+  theme(legend.key=element_blank(),axis.ticks = element_blank(),
+        axis.text.x = element_text(colour = "black", size = 8, angle = 90,
+                                   vjust = 0.3, hjust = 1),
+        axis.text.y = element_text(colour = "black", size = 8),
+        legend.text = element_text(size = 8, colour ="black"),
+        legend.title = element_text(size = 9, face = "bold"),
+        panel.background = element_blank(),
+        legend.position = "right") +
+  theme(panel.grid.major = element_line(colour = "grey50", size = 0.04))
+p_gg
+
+dev.off()
+
+```
+
+#### supplementary figure 14. Genes enriched for the level 0 severe and hospitalised traits from the coronary artery tissue analysis derived from STRING (detailed from Supplementary Figure 13)
+
+```{r}
+
+# input files
+
+severe_coronary <- read_excel("~/severe_level0_trait_gene.xlsx")
+hosp_coronary <- read_excel("~/hosp_level0_trait_gene.xlsx")
+
+# supplementary figure 14a. Genes that are associated with the significant traits at level 0 in the severe phenotype ------------------------
+
+severe_coronary_f <- table(severe_coronary[c("trait", "gene")]) 
+
+pheatmap (severe_coronary_f,
+          color = colorRampPalette (c ("white", "red")) (500), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 10,
+          filename = "~/level0_heatmap.pdf")
+
+# supplementary figure 14b. Genes that are associated with the significant traits at level 0 in the hospitalised phenotype ------------------------
+
+hosp_coronary_f <- table(hosp_coronary[c("trait", "gene")])
+
+pheatmap (hosp_coronary_f,
+          color = colorRampPalette (c ("white", "red")) (500), 
+          cluster_cols = T, 
+          cluster_rows = T,
+          cellheight = 9, 
+          cellwidth = 9,
+          fontsize = 8,
+          height = 6,
+          filename = "~/level0_heatmap.pdf")
+
+```
